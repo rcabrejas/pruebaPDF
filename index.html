@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Documento</title>
+<style>
+  :root { color-scheme: light dark; }
+  html, body { margin: 0; padding: 0; background: #2b2b2b; }
+  #status {
+    color: #eaeaea;
+    font-family: system-ui, -apple-system, sans-serif;
+    text-align: center;
+    padding: 28px 16px;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  #viewer {
+    padding: 12px 0 48px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  #viewer canvas {
+    display: block;
+    margin: 0 auto 12px;
+    max-width: 100%;
+    background: #fff;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.45);
+  }
+</style>
+</head>
+<body>
+<div id="status">Cargando documento…</div>
+<div id="viewer"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+  // Nombre EXACTO del PDF que está en la misma carpeta que este archivo.
+  // Si cambias el nombre del PDF, cámbialo también aquí (respeta mayúsculas).
+  var PDF_FILE = "CJS_PROPUESTAPOLITICA.pdf";
+
+  var statusEl = document.getElementById("status");
+  var viewer = document.getElementById("viewer");
+
+  if (!window.pdfjsLib) {
+    statusEl.textContent = "No se pudo cargar el visor. Revisa tu conexión a internet.";
+  } else {
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+    pdfjsLib.getDocument(PDF_FILE).promise.then(function (pdf) {
+      statusEl.style.display = "none";
+      var dpr = window.devicePixelRatio || 1;
+
+      function renderPage(num) {
+        return pdf.getPage(num).then(function (page) {
+          var containerWidth = Math.min(viewer.clientWidth - 24, 1000);
+          if (containerWidth < 200) { containerWidth = 200; }
+          var base = page.getViewport({ scale: 1 });
+          var scale = containerWidth / base.width;
+          var viewport = page.getViewport({ scale: scale * dpr });
+
+          var canvas = document.createElement("canvas");
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          canvas.style.width = containerWidth + "px";
+          viewer.appendChild(canvas);
+
+          return page.render({
+            canvasContext: canvas.getContext("2d"),
+            viewport: viewport
+          }).promise;
+        });
+      }
+
+      // Renderiza las páginas una tras otra, en orden.
+      var chain = Promise.resolve();
+      for (var i = 1; i <= pdf.numPages; i++) {
+        (function (n) {
+          chain = chain.then(function () { return renderPage(n); });
+        })(i);
+      }
+      return chain;
+    }).catch(function (err) {
+      statusEl.style.display = "block";
+      statusEl.textContent = "No se pudo mostrar el PDF. Comprueba que el archivo \"" +
+        PDF_FILE + "\" está en la misma carpeta que esta página. (" + err.message + ")";
+    });
+  }
+</script>
+</body>
+</html>
